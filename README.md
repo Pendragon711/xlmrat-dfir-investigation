@@ -1,223 +1,224 @@
 <div align="center">
 
-# 🔎 DFIR Investigation: XLMRat
+# 🔎 Investigação DFIR: XLMRat
 
-### Network Forensics & Malware Triage — CyberDefenders Lab
+### Forense de Rede e Triagem de Malware — Lab da CyberDefenders
 
-![Platform](https://img.shields.io/badge/Platform-CyberDefenders-blue?style=for-the-badge)
-![Category](https://img.shields.io/badge/Category-Network%20Forensics-informational?style=for-the-badge)
-![Focus](https://img.shields.io/badge/Focus-Blue%20Team%20%2F%20DFIR-1f6feb?style=for-the-badge)
-![Malware](https://img.shields.io/badge/Family-AsyncRAT-red?style=for-the-badge)
+![Plataforma](https://img.shields.io/badge/Plataforma-CyberDefenders-blue?style=for-the-badge)
+![Categoria](https://img.shields.io/badge/Categoria-Network%20Forensics-informational?style=for-the-badge)
+![Foco](https://img.shields.io/badge/Foco-Blue%20Team%20%2F%20DFIR-1f6feb?style=for-the-badge)
+![Malware](https://img.shields.io/badge/Fam%C3%ADlia-AsyncRAT-red?style=for-the-badge)
 ![MITRE](https://img.shields.io/badge/MITRE-ATT%26CK-orange?style=for-the-badge)
 
-*From a suspicious `.jpg` in a PCAP to a fully identified RAT delivery chain.*
+*De um `.jpg` suspeito em um PCAP até uma cadeia de entrega de RAT totalmente identificada.*
 
 </div>
 
 ---
 
-## 📑 Table of Contents
+## 📑 Sumário
 
-- [Overview](#-overview)
-- [Objectives](#-objectives)
-- [Tools](#-tools)
-- [Methodology](#-methodology)
-- [Attack Chain](#-attack-chain)
-- [Key Findings](#-key-findings)
-- [Indicators of Compromise](#-indicators-of-compromise-iocs)
-- [MITRE ATT&CK Mapping](#-mitre-attck-mapping)
-- [Detailed Walkthrough](#-detailed-walkthrough)
-- [Defensive Takeaways](#-defensive-takeaways)
-- [Repository Structure](#-repository-structure)
-- [Skills Demonstrated](#-skills-demonstrated)
-- [Disclaimer](#-disclaimer)
-- [Author](#-author)
+- [Visão Geral](#-visão-geral)
+- [Objetivos](#-objetivos)
+- [Ferramentas](#-ferramentas)
+- [Metodologia](#-metodologia)
+- [Cadeia de Ataque](#-cadeia-de-ataque)
+- [Principais Achados](#-principais-achados)
+- [Indicadores de Comprometimento](#-indicadores-de-comprometimento-iocs)
+- [Mapeamento MITRE ATT&CK](#-mapeamento-mitre-attck)
+- [Passo a Passo Detalhado](#-passo-a-passo-detalhado)
+- [Lições Defensivas](#-lições-defensivas)
+- [Estrutura do Repositório](#-estrutura-do-repositório)
+- [Habilidades Demonstradas](#-habilidades-demonstradas)
+- [Aviso Legal](#-aviso-legal)
+- [Autor](#-autor)
 
 ---
 
-## 📌 Overview
+## 📌 Visão Geral
 
-This project documents the investigation of a malware delivery and execution scenario from the **XLMRat** lab on CyberDefenders.
+Este projeto documenta a investigação de um cenário de entrega e execução de malware do lab **XLMRat**, da CyberDefenders.
 
-The analysis covers network traffic inspection, recovery of the first malware stage, payload deobfuscation, hash validation, malware family identification, and the abuse of a Windows **Living-off-the-Land Binary (LOLBin)** for stealthy execution.
+A análise cobre a inspeção de tráfego de rede, a recuperação do primeiro estágio do malware, a desofuscação do payload, a validação de hashes, a identificação da família do malware e o abuso de um **Living-off-the-Land Binary (LOLBin)** do Windows para execução furtiva.
 
 | | |
 |---|---|
-| **Platform** | CyberDefenders |
+| **Plataforma** | CyberDefenders |
 | **Lab** | XLMRat |
-| **Category** | Network Forensics |
-| **Investigation type** | Network traffic analysis and malware triage |
+| **Categoria** | Network Forensics |
+| **Tipo de investigação** | Análise de tráfego de rede e triagem de malware |
 
 ---
 
-## 🎯 Objectives
+## 🎯 Objetivos
 
-- [x] Identify the URL used to download the first malware stage
-- [x] Determine the hosting provider of the attack infrastructure
-- [x] Follow HTTP traffic to identify and recover malware artifacts
-- [x] Deobfuscate the payload and calculate its SHA256 hash
-- [x] Identify the malware family and PE compilation timestamp
-- [x] Investigate the LOLBin used for stealthy execution
-- [x] Identify files dropped by the malicious script
-- [x] Map attacker techniques to MITRE ATT&CK
-
----
-
-## 🧰 Tools
-
-| Tool | Purpose |
-|------|---------|
-| **Wireshark** | PCAP inspection, HTTP filtering, TCP stream analysis |
-| **CyberChef** | Payload decoding and deobfuscation |
-| **VirusTotal** | Hash analysis, malware identification, PE metadata |
-| **Python 3** | Artifact parsing and analysis automation |
-| **MITRE ATT&CK** | Classification of observed techniques |
+- [x] Identificar a URL usada para baixar o primeiro estágio do malware
+- [x] Determinar o provedor de hospedagem da infraestrutura do ataque
+- [x] Seguir o tráfego HTTP para identificar e recuperar artefatos do malware
+- [x] Desofuscar o payload e calcular seu hash SHA256
+- [x] Identificar a família do malware e o timestamp de compilação do PE
+- [x] Investigar o LOLBin usado para execução furtiva
+- [x] Identificar os arquivos criados (dropped) pelo script malicioso
+- [x] Mapear as técnicas do atacante no MITRE ATT&CK
 
 ---
 
-## 🧭 Methodology
+## 🧰 Ferramentas
 
-1. Inspect the PCAP and identify HTTP requests originating from the victim
-2. Extract the URL used to retrieve the first malware stage
-3. Investigate the IP address and hosting provider
-4. Follow the relevant HTTP/TCP stream to inspect the downloaded content
-5. Deobfuscate the malicious script and identify its payloads
-6. Calculate and validate the executable's SHA256 hash
-7. Use VirusTotal for malware classification and PE metadata
-8. Identify the LOLBin and files referenced by the script
-9. Map observed behavior to MITRE ATT&CK
+| Ferramenta | Finalidade |
+|------------|------------|
+| **Wireshark** | Inspeção de PCAP, filtros HTTP e análise de TCP streams |
+| **CyberChef** | Decodificação e desofuscação de payloads |
+| **VirusTotal** | Análise de hash, identificação do malware e metadados do PE |
+| **Python 3** | Parsing de artefatos e automação da análise |
+| **MITRE ATT&CK** | Classificação das técnicas observadas |
 
 ---
 
-## 🔗 Attack Chain
+## 🧭 Metodologia
+
+1. Inspecionar o PCAP e identificar as requisições HTTP originadas pela vítima
+2. Extrair a URL usada para obter o primeiro estágio do malware
+3. Investigar o endereço IP e o provedor de hospedagem
+4. Seguir o HTTP/TCP stream relevante para inspecionar o conteúdo baixado
+5. Desofuscar o script malicioso e identificar seus payloads
+6. Calcular e validar o hash SHA256 do executável
+7. Usar o VirusTotal para classificação do malware e metadados do PE
+8. Identificar o LOLBin e os arquivos referenciados pelo script
+9. Mapear o comportamento observado para o MITRE ATT&CK
+
+---
+
+## 🔗 Cadeia de Ataque
 
 ```mermaid
 flowchart LR
-    A[Victim host] -->|HTTP GET| B["mdm.jpg<br/>(not an image)"]
-    B --> C[Obfuscated script]
-    C --> D["Drops conted.ps1<br/>conted.bat / conted.vbs"]
+    A[Host da vítima] -->|HTTP GET| B["mdm.jpg<br/>(não é uma imagem)"]
+    B --> C[Script ofuscado]
+    C --> D["Cria conted.ps1<br/>conted.bat / conted.vbs"]
     C --> E["RegSvcs.exe<br/>(LOLBin)"]
-    E --> F[AsyncRAT payload]
+    E --> F[Payload AsyncRAT]
 ```
 
 ---
 
-## 🏁 Key Findings
+## 🏁 Principais Achados
 
-| Question | Finding |
-|----------|---------|
-| First-stage malware URL | `hxxp://45.126.209[.]4:222/mdm.jpg` |
-| Hosting provider | reliableSite.net |
-| Executable SHA256 | `1eb7b02e18f67420f42b1d94e74f3b6289d92672a0fb1786c30c03d68e81d798` |
-| Malware family (Alibaba) | AsyncRAT |
-| PE compilation timestamp | 2023-10-30 15:08 |
+| Pergunta | Achado |
+|----------|--------|
+| URL do malware (primeiro estágio) | `hxxp://45.126.209[.]4:222/mdm.jpg` |
+| Provedor de hospedagem | reliableSite.net |
+| SHA256 do executável | `1eb7b02e18f67420f42b1d94e74f3b6289d92672a0fb1786c30c03d68e81d798` |
+| Família do malware (Alibaba) | AsyncRAT |
+| Timestamp de compilação do PE | 2023-10-30 15:08 |
 | LOLBin | `C:\Windows\Microsoft.NET\Framework\v4.0.30319\RegSvcs.exe` |
-| Files dropped | `conted.ps1`, `conted.bat`, `conted.vbs` |
+| Arquivos criados pelo script | `conted.ps1`, `conted.bat`, `conted.vbs` |
 
 ---
 
-## 🚩 Indicators of Compromise (IOCs)
+## 🚩 Indicadores de Comprometimento (IOCs)
 
-> Network indicators are defanged for safety.
+> Os indicadores de rede estão defanged por segurança.
 
-| Type | Value |
+| Tipo | Valor |
 |------|-------|
 | URL | `hxxp://45.126.209[.]4:222/mdm.jpg` |
 | IP | `45.126.209[.]4` |
 | SHA256 | `1eb7b02e18f67420f42b1d94e74f3b6289d92672a0fb1786c30c03d68e81d798` |
-| File | `conted.ps1` |
-| File | `conted.bat` |
-| File | `conted.vbs` |
-| Process | `RegSvcs.exe` (unexpected execution / suspicious arguments) |
+| Arquivo | `conted.ps1` |
+| Arquivo | `conted.bat` |
+| Arquivo | `conted.vbs` |
+| Processo | `RegSvcs.exe` (execução inesperada / argumentos suspeitos) |
 
 ---
 
-## 🛡️ MITRE ATT&CK Mapping
+## 🛡️ Mapeamento MITRE ATT&CK
 
-| Technique | ID | Relevance |
-|-----------|----|-----------|
-| Ingress Tool Transfer | `T1105` | Download of a malware stage over HTTP |
-| PowerShell | `T1059.001` | Identified PowerShell script and execution context |
-| System Binary Proxy Execution: Regsvcs/Regasm | `T1218.009` | Abuse of `RegSvcs.exe` |
-| Reflective Code Loading | `T1620` | Lab focus; needs script/behavioral evidence to confirm the exact implementation |
+| Técnica | ID | Relevância |
+|---------|----|------------|
+| Ingress Tool Transfer | `T1105` | Download de um estágio do malware via HTTP |
+| PowerShell | `T1059.001` | Script PowerShell identificado e seu contexto de execução |
+| System Binary Proxy Execution: Regsvcs/Regasm | `T1218.009` | Abuso do `RegSvcs.exe` |
+| Reflective Code Loading | `T1620` | Foco do lab; exige evidência no script ou no comportamento para confirmar a implementação exata |
 
-> **Note:** Reflective code loading should be validated against the script or payload behavior, not inferred only from the presence of a LOLBin.
+> **Nota:** o Reflective Code Loading deve ser validado contra o comportamento do script ou do payload, e não inferido apenas pela presença de um LOLBin.
 
 ---
 
-## 🔬 Detailed Walkthrough
+## 🔬 Passo a Passo Detalhado
 
-### 1. Initial Malware Delivery
+### 1. Entrega Inicial do Malware
 
-Filtering HTTP traffic in Wireshark and reviewing GET requests from the victim revealed a download from a remote IP. The file used a `.jpg` extension, but the extension alone does not prove it is an image.
+Filtrando o tráfego HTTP no Wireshark e revisando as requisições GET da vítima, foi encontrado um download a partir de um IP remoto. O arquivo usava a extensão `.jpg`, mas a extensão sozinha não prova que se trata de uma imagem.
 
-![Wireshark HTTP GET Request](screenshots/q1-http-request.png)
+![Requisição HTTP GET no Wireshark](screenshots/q1-http-request.png)
 
-### 2. Hosting Infrastructure
+### 2. Infraestrutura de Hospedagem
 
-The destination IP `45.126.209.4` is associated with **reliableSite.net**. Hosting association does not imply the provider knowingly participated in the activity.
+O IP de destino `45.126.209.4` está associado à **reliableSite.net**. A associação de um provedor a um IP não implica que ele tenha participado da atividade de forma consciente.
 
-![Hosting Provider](screenshots/q2-hosting-provider.png)
+![Provedor de Hospedagem](screenshots/q2-hosting-provider.png)
 
-### 3. HTTP Stream Analysis
+### 3. Análise do HTTP Stream
 
-Following the TCP stream showed that the resource served as `.jpg` was not a conventional image, reinforcing the need to inspect content rather than trust filenames.
+Ao seguir o TCP stream, ficou claro que o recurso servido como `.jpg` não era uma imagem convencional, reforçando a necessidade de inspecionar o conteúdo em vez de confiar em nomes de arquivo.
 
-![TCP Stream Analysis](screenshots/tcp-stream-analysis.png)
+![Análise do TCP Stream](screenshots/tcp-stream-analysis.png)
 
-### 4. Script Deobfuscation
+### 4. Desofuscação do Script
 
-CyberChef was used to decode the obfuscated content, identify the executable payload, and obtain its SHA256.
+O CyberChef foi usado para decodificar o conteúdo ofuscado, identificar o payload executável e obter seu SHA256.
 
-![CyberChef Payload Analysis](screenshots/cyberchef-decoded-sha256.png)
+![Análise do Payload no CyberChef](screenshots/cyberchef-decoded-sha256.png)
 
-### 5. Hash Validation & Malware Family
+### 5. Validação do Hash e Família do Malware
 
-The SHA256 was submitted to VirusTotal. The lab identified the family as **AsyncRAT** based on Alibaba's classification.
+O SHA256 foi consultado no VirusTotal. O lab identificou a família como **AsyncRAT**, com base na classificação da Alibaba.
 
-![VirusTotal SHA256](screenshots/virustotal-sha256.png)
-![AsyncRAT Classification](screenshots/virustotal-asyncrat-family.png)
+![SHA256 no VirusTotal](screenshots/virustotal-sha256.png)
+![Classificação AsyncRAT](screenshots/virustotal-asyncrat-family.png)
 
-> In an independent investigation, compare multiple engines and behavioral evidence instead of relying on a single vendor label.
+> Em uma investigação independente, compare vários engines e evidências comportamentais em vez de depender do rótulo de um único fornecedor.
 
-### 6. PE Compilation Timestamp
+### 6. Timestamp de Compilação do PE
 
-VirusTotal metadata reports a compilation timestamp of **2023-10-30 15:08**. PE timestamps can be manipulated and may need timezone clarification, so this is not proof of when the malware was created or deployed.
+Os metadados do VirusTotal indicam o timestamp de compilação **2023-10-30 15:08**. Timestamps de PE podem ser manipulados e podem exigir esclarecimento de fuso horário, então isso não prova quando o malware foi criado ou implantado.
 
-![PE Compilation Timestamp](screenshots/virustotal-pe-timestamp.png)
+![Timestamp de Compilação do PE](screenshots/virustotal-pe-timestamp.png)
 
 ### 7. LOLBin: RegSvcs.exe
 
-`RegSvcs.exe` is a legitimate .NET Framework utility for registering serviced components. Its security significance depends on how it is invoked, its arguments, and whether the activity matches expected administration.
+O `RegSvcs.exe` é um utilitário legítimo do .NET Framework para registrar componentes de serviço. Sua relevância para a segurança depende de como ele é invocado, dos argumentos usados e de a atividade corresponder ou não à administração esperada.
 
-### 8. Dropped Files
+### 8. Arquivos Criados pelo Script
 
-| File | Format | Relevance |
-|------|--------|-----------|
-| `conted.ps1` | PowerShell | Script execution and payload delivery |
-| `conted.bat` | Batch | Windows command execution |
-| `conted.vbs` | VBScript | Scripting and execution orchestration |
+| Arquivo | Formato | Relevância |
+|---------|---------|------------|
+| `conted.ps1` | PowerShell | Execução de script e entrega do payload |
+| `conted.bat` | Batch | Execução de comandos no Windows |
+| `conted.vbs` | VBScript | Scripting e orquestração da execução |
 
-> These are format-based interpretations. Confirming each file's exact role requires inspecting its contents and execution context.
-
----
-
-## 🧠 Defensive Takeaways
-
-- **Inspect payloads, not filenames.** A `.jpg` extension does not guarantee image data.
-- **Correlate network and host artifacts.** Requests, files, scripts, and PE metadata tell a fuller story together.
-- **Monitor LOLBin usage.** Watch for unexpected `RegSvcs.exe` execution, unusual arguments, and suspicious parent-child process relationships.
-- **Track artifacts by hash.** SHA256 enables consistent correlation across tools and threat intel.
-- **Treat attribution as evidence-based.** Vendor labels are indicators, so corroborate them.
-- **Preserve the investigation trail.** Screenshots, artifacts, timestamps, and conclusions improve reproducibility.
+> São interpretações baseadas no formato. Confirmar o papel exato de cada arquivo exige inspecionar seu conteúdo e contexto de execução.
 
 ---
 
-## 📂 Repository Structure
+## 🧠 Lições Defensivas
+
+- **Inspecione payloads, não nomes de arquivo.** A extensão `.jpg` não garante dados de imagem.
+- **Correlacione artefatos de rede e de host.** Requisições, arquivos, scripts e metadados do PE contam uma história mais completa quando analisados juntos.
+- **Monitore o uso de LOLBins.** Fique atento a execuções inesperadas do `RegSvcs.exe`, argumentos incomuns e relações suspeitas entre processo pai e filho.
+- **Rastreie artefatos por hash.** O SHA256 permite correlação consistente entre ferramentas e fontes de threat intel.
+- **Trate atribuição como conclusão baseada em evidências.** Rótulos de fornecedores são indicadores e devem ser corroborados.
+- **Preserve a trilha da investigação.** Screenshots, artefatos, timestamps e conclusões melhoram a reprodutibilidade.
+
+---
+
+## 📂 Estrutura do Repositório
 
 ```text
 .
 ├── README.md
+├── README.pt-BR.md
 ├── report/
 │   └── XLMRat-DFIR-Report.pdf
 └── screenshots/
@@ -232,21 +233,21 @@ VirusTotal metadata reports a compilation timestamp of **2023-10-30 15:08**. PE 
 
 ---
 
-## 💡 Skills Demonstrated
+## 💡 Habilidades Demonstradas
 
-`PCAP Analysis` · `HTTP Stream Inspection` · `Script Deobfuscation` · `Malware Triage` · `Hash-based Investigation` · `LOLBin Detection` · `IOC Extraction` · `MITRE ATT&CK Mapping` · `DFIR Reporting`
-
----
-
-## ⚠️ Disclaimer
-
-This report documents findings from an **authorized training lab** and is intended for educational and defensive purposes. IPs, filenames, hashes, and indicators are included for analysis only and should not be read as attribution to any individual or organization.
+`Análise de PCAP` · `Inspeção de HTTP Stream` · `Desofuscação de Scripts` · `Triagem de Malware` · `Investigação por Hash` · `Detecção de LOLBin` · `Extração de IOCs` · `Mapeamento MITRE ATT&CK` · `Relatórios DFIR`
 
 ---
 
-## 👤 Author
+## ⚠️ Aviso Legal
+
+Este relatório documenta achados de um **lab de treinamento autorizado** e tem finalidade educacional e defensiva. IPs, nomes de arquivo, hashes e indicadores são incluídos apenas para análise e não devem ser interpretados como atribuição a qualquer pessoa ou organização.
+
+---
+
+## 👤 Autor
 
 **Daniel Widal**
-DFIR · Network Forensics · Malware Analysis · Blue Team
+DFIR · Network Forensics · Análise de Malware · Blue Team
 
-🔗 Lab reference: [CyberDefenders — XLMRat](https://cyberdefenders.org/)
+🔗 Referência do lab: [CyberDefenders — XLMRat](https://cyberdefenders.org/)
