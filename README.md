@@ -1,302 +1,252 @@
-DFIR Investigation: XLMRat Malware Analysis
-CyberDefenders Lab | Network Forensics | Malware Analysis
+<div align="center">
 
+# 🔎 DFIR Investigation: XLMRat
 
+### Network Forensics & Malware Triage — CyberDefenders Lab
 
+![Platform](https://img.shields.io/badge/Platform-CyberDefenders-blue?style=for-the-badge)
+![Category](https://img.shields.io/badge/Category-Network%20Forensics-informational?style=for-the-badge)
+![Focus](https://img.shields.io/badge/Focus-Blue%20Team%20%2F%20DFIR-1f6feb?style=for-the-badge)
+![Malware](https://img.shields.io/badge/Family-AsyncRAT-red?style=for-the-badge)
+![MITRE](https://img.shields.io/badge/MITRE-ATT%26CK-orange?style=for-the-badge)
 
+*From a suspicious `.jpg` in a PCAP to a fully identified RAT delivery chain.*
 
+</div>
 
+---
 
-1. Overview
+## 📑 Table of Contents
 
-This report documents the investigation of a malware delivery and execution scenario from the XLMRat lab on CyberDefenders.
+- [Overview](#-overview)
+- [Objectives](#-objectives)
+- [Tools](#-tools)
+- [Methodology](#-methodology)
+- [Attack Chain](#-attack-chain)
+- [Key Findings](#-key-findings)
+- [Indicators of Compromise](#-indicators-of-compromise-iocs)
+- [MITRE ATT&CK Mapping](#-mitre-attck-mapping)
+- [Detailed Walkthrough](#-detailed-walkthrough)
+- [Defensive Takeaways](#-defensive-takeaways)
+- [Repository Structure](#-repository-structure)
+- [Skills Demonstrated](#-skills-demonstrated)
+- [Disclaimer](#-disclaimer)
+- [Author](#-author)
 
-The investigation focused on analyzing network traffic, identifying the initial malware download, examining malicious scripts, recovering payload information, validating file hashes, and identifying the malware family.
+---
 
-The scenario also involved stealthy execution through a Windows Living-off-the-Land Binary (LOLBin) and techniques associated with reflective code loading.
+## 📌 Overview
 
-Platform: CyberDefenders
-Lab: XLMRat
-Category: Network Forensics
-Investigation type: Network traffic analysis and malware triage
+This project documents the investigation of a malware delivery and execution scenario from the **XLMRat** lab on CyberDefenders.
 
-Investigation objectives
-Identify the URL used to download the first malware stage.
-Determine the hosting provider associated with the attack infrastructure.
-Follow HTTP traffic to identify and recover malware artifacts.
-Deobfuscate the relevant payload and calculate its SHA256 hash.
-Identify the malware family and PE compilation timestamp.
-Investigate the LOLBin used for stealthy execution.
-Identify files dropped by the malicious script.
-Map relevant attacker techniques to MITRE ATT&CK.
-2. Tools and Environment
-Tool	Purpose
-Wireshark	PCAP inspection, HTTP filtering, and TCP stream analysis
-CyberChef	Payload decoding and deobfuscation
-VirusTotal	File hash analysis, malware identification, and PE metadata inspection
-Python 3	Potential artifact parsing and analysis automation
-MITRE ATT&CK	Classification of observed attacker techniques
+The analysis covers network traffic inspection, recovery of the first malware stage, payload deobfuscation, hash validation, malware family identification, and the abuse of a Windows **Living-off-the-Land Binary (LOLBin)** for stealthy execution.
 
-The investigation was performed using artifacts supplied by the lab. The analysis was conducted for educational and defensive purposes.
+| | |
+|---|---|
+| **Platform** | CyberDefenders |
+| **Lab** | XLMRat |
+| **Category** | Network Forensics |
+| **Investigation type** | Network traffic analysis and malware triage |
 
-3. Investigation Methodology
+---
 
-The investigation followed a sequential workflow:
+## 🎯 Objectives
 
-Inspect the PCAP file and identify HTTP requests originating from the victim.
-Extract the URL used to retrieve the first malware stage.
-Investigate the associated IP address and hosting provider.
-Follow the relevant HTTP/TCP stream to inspect the downloaded content.
-Examine and deobfuscate the malicious script and identify its payloads.
-Calculate and validate the malware executable's SHA256 hash.
-Use VirusTotal to examine the executable's malware classification and PE metadata.
-Identify the LOLBin and files referenced by the malicious script.
-Map the observed behavior to relevant MITRE ATT&CK techniques.
-4. Investigation and Findings
-4.1. Initial Malware Delivery — HTTP Traffic Analysis
+- [x] Identify the URL used to download the first malware stage
+- [x] Determine the hosting provider of the attack infrastructure
+- [x] Follow HTTP traffic to identify and recover malware artifacts
+- [x] Deobfuscate the payload and calculate its SHA256 hash
+- [x] Identify the malware family and PE compilation timestamp
+- [x] Investigate the LOLBin used for stealthy execution
+- [x] Identify files dropped by the malicious script
+- [x] Map attacker techniques to MITRE ATT&CK
 
-Objective: Identify the URL from which the first malware stage was downloaded.
+---
 
-I opened the provided PCAP in Wireshark and filtered the traffic to focus on HTTP communications. Following the lab's investigative hints, I examined GET requests originating from the victim host.
+## 🧰 Tools
 
-The relevant request revealed a resource hosted on a remote IP address. Although the downloaded file used a .jpg extension, its extension alone was not sufficient to establish that it contained a legitimate image.
+| Tool | Purpose |
+|------|---------|
+| **Wireshark** | PCAP inspection, HTTP filtering, TCP stream analysis |
+| **CyberChef** | Payload decoding and deobfuscation |
+| **VirusTotal** | Hash analysis, malware identification, PE metadata |
+| **Python 3** | Artifact parsing and analysis automation |
+| **MITRE ATT&CK** | Classification of observed techniques |
 
-Finding:
+---
 
-First-stage download URL: http://45.126.209.4:222/mdm.jpg
-Destination IP: 45.126.209.4
-Protocol: HTTP
-Requested resource: mdm.jpg
+## 🧭 Methodology
 
-Evidence — Initial HTTP Request
+1. Inspect the PCAP and identify HTTP requests originating from the victim
+2. Extract the URL used to retrieve the first malware stage
+3. Investigate the IP address and hosting provider
+4. Follow the relevant HTTP/TCP stream to inspect the downloaded content
+5. Deobfuscate the malicious script and identify its payloads
+6. Calculate and validate the executable's SHA256 hash
+7. Use VirusTotal for malware classification and PE metadata
+8. Identify the LOLBin and files referenced by the script
+9. Map observed behavior to MITRE ATT&CK
+
+---
+
+## 🔗 Attack Chain
+
+```mermaid
+flowchart LR
+    A[Victim host] -->|HTTP GET| B["mdm.jpg<br/>(not an image)"]
+    B --> C[Obfuscated script]
+    C --> D["Drops conted.ps1<br/>conted.bat / conted.vbs"]
+    C --> E["RegSvcs.exe<br/>(LOLBin)"]
+    E --> F[AsyncRAT payload]
+```
+
+---
+
+## 🏁 Key Findings
+
+| Question | Finding |
+|----------|---------|
+| First-stage malware URL | `hxxp://45.126.209[.]4:222/mdm.jpg` |
+| Hosting provider | reliableSite.net |
+| Executable SHA256 | `1eb7b02e18f67420f42b1d94e74f3b6289d92672a0fb1786c30c03d68e81d798` |
+| Malware family (Alibaba) | AsyncRAT |
+| PE compilation timestamp | 2023-10-30 15:08 |
+| LOLBin | `C:\Windows\Microsoft.NET\Framework\v4.0.30319\RegSvcs.exe` |
+| Files dropped | `conted.ps1`, `conted.bat`, `conted.vbs` |
+
+---
+
+## 🚩 Indicators of Compromise (IOCs)
+
+> Network indicators are defanged for safety.
+
+| Type | Value |
+|------|-------|
+| URL | `hxxp://45.126.209[.]4:222/mdm.jpg` |
+| IP | `45.126.209[.]4` |
+| SHA256 | `1eb7b02e18f67420f42b1d94e74f3b6289d92672a0fb1786c30c03d68e81d798` |
+| File | `conted.ps1` |
+| File | `conted.bat` |
+| File | `conted.vbs` |
+| Process | `RegSvcs.exe` (unexpected execution / suspicious arguments) |
+
+---
+
+## 🛡️ MITRE ATT&CK Mapping
+
+| Technique | ID | Relevance |
+|-----------|----|-----------|
+| Ingress Tool Transfer | `T1105` | Download of a malware stage over HTTP |
+| PowerShell | `T1059.001` | Identified PowerShell script and execution context |
+| System Binary Proxy Execution: Regsvcs/Regasm | `T1218.009` | Abuse of `RegSvcs.exe` |
+| Reflective Code Loading | `T1620` | Lab focus; needs script/behavioral evidence to confirm the exact implementation |
+
+> **Note:** Reflective code loading should be validated against the script or payload behavior, not inferred only from the presence of a LOLBin.
+
+---
+
+## 🔬 Detailed Walkthrough
+
+### 1. Initial Malware Delivery
+
+Filtering HTTP traffic in Wireshark and reviewing GET requests from the victim revealed a download from a remote IP. The file used a `.jpg` extension, but the extension alone does not prove it is an image.
 
 ![Wireshark HTTP GET Request](screenshots/q1-http-request.png)
 
+### 2. Hosting Infrastructure
 
-
-
-Figure 1 — HTTP traffic revealing the first-stage malware download URL.
-
-Analytical note: The request establishes the download location observed in the captured traffic. The filename extension should not be treated as proof of the downloaded file's actual format.
-
-4.2. Hosting Infrastructure Attribution
-
-Objective: Identify the hosting provider associated with the IP address.
-
-After identifying the destination IP, I investigated its associated hosting infrastructure to determine the provider reported by the lab.
-
-Finding:
-
-IP address: 45.126.209.4
-Hosting provider: reliableSite.net
-
-Evidence — Hosting Provider Identification
+The destination IP `45.126.209.4` is associated with **reliableSite.net**. Hosting association does not imply the provider knowingly participated in the activity.
 
 ![Hosting Provider](screenshots/q2-hosting-provider.png)
 
+### 3. HTTP Stream Analysis
 
-
-
-Figure 2 — Hosting provider associated with the malware delivery IP.
-
-Analytical note: Infrastructure attribution helps document where the observed payload was hosted. A hosting provider's association with an IP address does not, by itself, establish that the provider knowingly participated in malicious activity.
-
-4.3. HTTP Stream Analysis and Payload Identification
-
-Objective: Inspect the downloaded content and identify the malware payload.
-
-I followed the relevant HTTP/TCP stream in Wireshark to examine the data transferred by the server. The investigation revealed that the resource delivered under the .jpg filename was not a conventional image.
-
-This reinforced the importance of inspecting the contents of transferred files instead of relying exclusively on filenames or extensions.
-
-The recovered content was then examined as part of the malicious script and payload analysis.
-
-Evidence — TCP Stream Inspection
+Following the TCP stream showed that the resource served as `.jpg` was not a conventional image, reinforcing the need to inspect content rather than trust filenames.
 
 ![TCP Stream Analysis](screenshots/tcp-stream-analysis.png)
 
+### 4. Script Deobfuscation
 
-
-
-Figure 3 — TCP stream inspection of the content associated with the malware delivery chain.
-
-Key observation: HTTP stream analysis provided the context needed to connect the initial download with the subsequent script and payload investigation.
-
-4.4. Script Deobfuscation and Payload Analysis
-
-Objective: Examine the malicious content and recover information about the executable payload.
-
-I used CyberChef to decode the relevant obfuscated content and inspect the resulting data. The analysis helped identify the malware executable and obtain its SHA256 hash.
-
-Recovered executable SHA256:
-
-1eb7b02e18f67420f42b1d94e74f3b6289d92672a0fb1786c30c03d68e81d798
-
-Evidence — CyberChef Decoding
+CyberChef was used to decode the obfuscated content, identify the executable payload, and obtain its SHA256.
 
 ![CyberChef Payload Analysis](screenshots/cyberchef-decoded-sha256.png)
 
+### 5. Hash Validation & Malware Family
 
-
-
-Figure 4 — Decoded payload analysis and SHA256 identification in CyberChef.
-
-Analytical note: The hash provides a stable identifier for the recovered executable. It can be used to correlate the artifact with external threat intelligence and malware analysis results.
-
-4.5. File Hash Validation and Malware Family Identification
-
-Objective: Validate the executable's SHA256 and identify its malware family.
-
-I submitted the executable's SHA256 identifier to VirusTotal to review the available file intelligence and detection results.
-
-The lab identified the malware family as AsyncRAT, based on Alibaba's classification.
-
-Findings:
-
-Attribute	Result
-Malware family	AsyncRAT
-Classification source requested by the lab	Alibaba
-SHA256	1eb7b02e18f67420f42b1d94e74f3b6289d92672a0fb1786c30c03d68e81d798
-
-Evidence — VirusTotal Hash Analysis
+The SHA256 was submitted to VirusTotal. The lab identified the family as **AsyncRAT** based on Alibaba's classification.
 
 ![VirusTotal SHA256](screenshots/virustotal-sha256.png)
-
-
-
-
-Figure 5 — VirusTotal artifact identification using the executable's SHA256.
-
-Evidence — Malware Family Classification
-
 ![AsyncRAT Classification](screenshots/virustotal-asyncrat-family.png)
 
+> In an independent investigation, compare multiple engines and behavioral evidence instead of relying on a single vendor label.
 
+### 6. PE Compilation Timestamp
 
-
-Figure 6 — Malware family classification identifying AsyncRAT.
-
-Analytical note: Malware family attribution is based on the classification reported by the lab. In an independent investigation, it is good practice to compare multiple detection engines, behavioral evidence, and relevant malware characteristics rather than relying on a single vendor label.
-
-4.6. PE Compilation Timestamp
-
-Objective: Extract the executable's PE header compilation timestamp.
-
-I examined the executable's metadata through VirusTotal to identify the PE compilation timestamp reported for the artifact.
-
-Finding:
-
-PE compilation timestamp: 2023-10-30 15:08
-
-Evidence — PE Metadata
+VirusTotal metadata reports a compilation timestamp of **2023-10-30 15:08**. PE timestamps can be manipulated and may need timezone clarification, so this is not proof of when the malware was created or deployed.
 
 ![PE Compilation Timestamp](screenshots/virustotal-pe-timestamp.png)
 
+### 7. LOLBin: RegSvcs.exe
 
+`RegSvcs.exe` is a legitimate .NET Framework utility for registering serviced components. Its security significance depends on how it is invoked, its arguments, and whether the activity matches expected administration.
 
+### 8. Dropped Files
 
-Figure 7 — PE metadata displaying the reported compilation timestamp.
+| File | Format | Relevance |
+|------|--------|-----------|
+| `conted.ps1` | PowerShell | Script execution and payload delivery |
+| `conted.bat` | Batch | Windows command execution |
+| `conted.vbs` | VBScript | Scripting and execution orchestration |
 
-Analytical note: A PE compilation timestamp is a useful metadata artifact, but it should not automatically be interpreted as the actual date and time the malware was created or deployed. PE timestamps can be manipulated, and the reported time may require timezone clarification.
+> These are format-based interpretations. Confirming each file's exact role requires inspecting its contents and execution context.
 
-4.7. LOLBin Identification and Stealthy Execution
+---
 
-Objective: Identify the Windows binary leveraged by the malicious script for stealthy execution.
+## 🧠 Defensive Takeaways
 
-The lab's script analysis identified the following executable:
+- **Inspect payloads, not filenames.** A `.jpg` extension does not guarantee image data.
+- **Correlate network and host artifacts.** Requests, files, scripts, and PE metadata tell a fuller story together.
+- **Monitor LOLBin usage.** Watch for unexpected `RegSvcs.exe` execution, unusual arguments, and suspicious parent-child process relationships.
+- **Track artifacts by hash.** SHA256 enables consistent correlation across tools and threat intel.
+- **Treat attribution as evidence-based.** Vendor labels are indicators, so corroborate them.
+- **Preserve the investigation trail.** Screenshots, artifacts, timestamps, and conclusions improve reproducibility.
 
-C:\Windows\Microsoft.NET\Framework\v4.0.30319\RegSvcs.exe
+---
 
-Finding:
+## 📂 Repository Structure
 
-LOLBin: RegSvcs.exe
-Full path: C:\Windows\Microsoft.NET\Framework\v4.0.30319\RegSvcs.exe
+```text
+.
+├── README.md
+├── report/
+│   └── XLMRat-DFIR-Report.pdf
+└── screenshots/
+    ├── q1-http-request.png
+    ├── q2-hosting-provider.png
+    ├── tcp-stream-analysis.png
+    ├── cyberchef-decoded-sha256.png
+    ├── virustotal-sha256.png
+    ├── virustotal-asyncrat-family.png
+    └── virustotal-pe-timestamp.png
+```
 
-RegSvcs.exe is a legitimate Microsoft .NET Framework utility associated with registering serviced components. Like other legitimate Windows binaries, it can be abused in malicious execution chains.
+---
 
-The security significance depends on how the binary is invoked, which arguments are supplied, and whether its execution matches expected administrative activity.
+## 💡 Skills Demonstrated
 
-Evidence: The executable path was identified through analysis of the malicious script and the lab's findings.
+`PCAP Analysis` · `HTTP Stream Inspection` · `Script Deobfuscation` · `Malware Triage` · `Hash-based Investigation` · `LOLBin Detection` · `IOC Extraction` · `MITRE ATT&CK Mapping` · `DFIR Reporting`
 
-Note: A dedicated screenshot of this finding can be added here if available.
+---
 
-4.8. Files Dropped by the Malicious Script
+## ⚠️ Disclaimer
 
-Objective: Identify the filenames referenced as files dropped by the script.
+This report documents findings from an **authorized training lab** and is intended for educational and defensive purposes. IPs, filenames, hashes, and indicators are included for analysis only and should not be read as attribution to any individual or organization.
 
-The lab identified the following files:
+---
 
-conted.ps1
-conted.bat
-conted.vbs
+## 👤 Author
 
-Finding: The script was designed to drop three files associated with the execution chain.
+**Daniel Widal**
+DFIR · Network Forensics · Malware Analysis · Blue Team
 
-The extensions suggest different script or command-execution formats:
-
-File	Format	Investigation relevance
-conted.ps1	PowerShell script	Script execution and payload delivery
-conted.bat	Batch file	Windows command execution
-conted.vbs	VBScript	Windows scripting and execution orchestration
-
-These are format-based interpretations, not proof of each file's exact role. Establishing their behavior independently would require inspecting their contents and execution context.
-
-Evidence: The filenames were recovered during the lab's malicious script analysis.
-
-Note: Add a screenshot of the script's file-writing or file-dropping instructions here if available.
-
-5. MITRE ATT&CK Mapping
-
-The following techniques are relevant to the behaviors investigated in this lab. The mapping distinguishes behaviors supported by the reported findings from techniques that require additional confirmation.
-
-Technique	ID	Relevance
-PowerShell	T1059.001	Relevant to the identified PowerShell script and its execution context
-System Binary Proxy Execution: Regsvcs/Regasm	T1218.009	Relevant to the identified RegSvcs.exe LOLBin
-Reflective Code Loading	T1620	Relevant to the lab's focus on reflective code loading; requires behavioral or script-level evidence to confirm the precise implementation
-Ingress Tool Transfer	T1105	Relevant to the observed download of a malware stage over HTTP
-
-Interpretation: The observed download supports investigation of tool transfer, while the identified PowerShell script and RegSvcs.exe provide context for script execution and potential proxy execution. Reflective code loading should be treated as a technique to validate against the script or payload behavior, rather than inferred solely from the use of a LOLBin.
-
-Reference: MITRE ATT&CK
-
-6. Consolidated Findings
-Question	Finding
-First-stage malware URL	http://45.126.209.4:222/mdm.jpg
-Hosting provider	reliableSite.net
-Malware executable SHA256	1eb7b02e18f67420f42b1d94e74f3b6289d92672a0fb1786c30c03d68e81d798
-Malware family (Alibaba)	AsyncRAT
-PE compilation timestamp	2023-10-30 15:08
-LOLBin full path	C:\Windows\Microsoft.NET\Framework\v4.0.30319\RegSvcs.exe
-Files dropped by the script	conted.ps1, conted.bat, conted.vbs
-7. Defensive Implications
-
-The investigation illustrates several useful defensive practices:
-
-Inspect network payloads, not just filenames. A .jpg extension does not establish that a resource contains image data.
-Correlate network and host artifacts. HTTP requests, downloaded files, script contents, and PE metadata provide a more complete picture when analyzed together.
-Monitor suspicious LOLBin usage. Unexpected execution of RegSvcs.exe, unusual command-line arguments, and suspicious parent-child process relationships can provide valuable detection opportunities.
-Track artifacts using cryptographic hashes. SHA256 enables consistent identification and correlation across analysis tools and threat intelligence sources.
-Treat malware attribution as an evidence-based conclusion. Vendor classifications are valuable indicators but should be corroborated when possible.
-Preserve the investigation trail. Screenshots, extracted artifacts, timestamps, and documented conclusions improve reproducibility and reporting quality.
-8. Conclusion
-
-The XLMRat lab provided practical experience in network forensics and malware triage, from identifying an initial HTTP download to analyzing a recovered payload and correlating its hash with external malware intelligence.
-
-The investigation identified the first-stage download URL, the reported hosting provider, the AsyncRAT family classification, the PE compilation timestamp, the use of RegSvcs.exe, and three filenames associated with the malicious script.
-
-The most important lesson was the value of correlating multiple evidence sources. Network traffic established the delivery context, payload analysis supported artifact identification, and external intelligence provided additional classification and metadata.
-
-This exercise strengthened my understanding of PCAP analysis, HTTP stream inspection, script deobfuscation, malware artifact identification, hash-based investigation, and MITRE ATT&CK mapping.
-
-9. Lab Information and Disclaimer
-Platform: CyberDefenders
-Challenge: XLMRat
-Category: Network Forensics
-Purpose: Educational blue-team investigation and defensive malware analysis
-
-This report documents findings from an authorized training lab. The IP addresses, filenames, hashes, and malware indicators are included for analysis and educational purposes. The findings should not be interpreted as independent attribution of the activity to a particular individual or organization.
-
-Lab reference: CyberDefenders — XLMRat
-
-Author: Daniel Widal
-Focus: DFIR | Network Forensics | Malware Analysis | Blue Team
+🔗 Lab reference: [CyberDefenders — XLMRat](https://cyberdefenders.org/)
